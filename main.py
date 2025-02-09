@@ -36,6 +36,7 @@ class state:
         self.whiteboard = 0
         self.show_video = False
         self.show_hands = True
+        self.show_help = False
 
     def __str__(self):
         return f"start: {self.datetimes[max(0, self.left)]}, end: {self.datetimes[min(self.len-1, self.left+int(1280/self.scale))]}"
@@ -66,7 +67,8 @@ class state:
                 if self.between == 0:
                     self.between = self.finger_distance() / self.scale
             elif GESTURES[0][0] == 'Thumb_Up': # swipe
-                self.scale_mode = 'scroll'
+                #self.scale_mode = 'scroll'
+                pass
             elif GESTURES[0][0] == 'Open_Palm': # reset
                 self.scale_mode = None
                 self.left = 0
@@ -85,20 +87,17 @@ class state:
 
         elif GESTURES[1][0] == 'Open_Palm': # video mode
             if GESTURES[0][0] == 'Closed_Fist':
-                self.video_mode = 0
+                self.show_video = False
+                self.show_hands = True
             elif GESTURES[0][0] == 'Pointing_Up':
-                self.video_mode = 1
+                self.show_video = False
+                self.show_hands = False
             elif GESTURES[0][0] == 'Victory':
-                self.video_mode = 2
+                self.show_video = True
+                self.show_hands = False
 
 STATE = state()
 print(STATE)
-
-help_msg = (
-    # (L, R, input)
-    ('Thumbs Up', 'None', 'Hide help'),
-    ('Thumbs Down', 'None', 'Hide help')
-)
 
 
 def set_index(result): # set state of index fingers
@@ -150,18 +149,23 @@ def event_loop(data, symbols, datetimes):
             elif STATE.scale_mode == 'scroll':
                 STATE.left = int(STATE.right_index[0]/1280*STATE.len)
 
-
         # stuff that always draws
         display = draw.draw_state(display, STATE)
         display = draw.draw_gesture(display, model.GESTURES)
         display = draw.draw_data(display, data[STATE.left:STATE.left+int(1280/STATE.scale)], STATE.scale, STATE.series, STATE.symbols)
         display = draw.draw_whiteboard(display, whiteboard) # buggy but basically works
+        if STATE.show_help:
+            display = draw.draw_help(display)
 
+
+        key = cv2.waitKey(1)
+        if key == ord('q'):
+            break
+        elif key == ord('h'):
+            STATE.show_help = not STATE.show_help
 
         cv2.imshow('app name', display) # change this
         timestamp += 1
-        if cv2.waitKey(1) == ord('q'):
-            break
 
     print('active frames:', timestamp)
     cap.release()
