@@ -14,12 +14,30 @@ COLORS = (
     ((252, 246, 238), (237, 202, 151), (219, 152, 52), (139, 93, 24)) # open
 )
 
-def draw_help(frame, help_msg):
-    y_diff = 20
-    y_top = 20
+def draw_help(frame):
+    help_msg = (
+        ('"Left Hand"', '"Right Hand"', '"Action"'),
+        ('Closed Fist', 'Pointing Up', 'Toggle Close'),
+        ('Closed Fist', 'Victory', 'Toggle Open'),
+        ('Closed Fist', 'Thumb Up', 'Toggle High'),
+        ('Closed Fist', 'Thumb Down', 'Toggle Low'),
+        ('Closed Fist', 'Open Palm', 'Toggle All'),
+        ('Pointing Up', 'Pointing Up', 'Zoom In/Out'),
+        ('Pointing Up', 'Pointing Up', 'Reset'),
+        ('Victory', 'Pointing Up', 'Start Drawing'),
+        ('Victory', 'Pointing Up', 'Stop Drawing'),
+        ('Victory', 'Pointing Up', 'Clear Drawing'),
+        ('Open Palm', 'Closed Fist', 'Default View'),
+        ('Open Palm', 'Closed Fist', 'Data View'),
+        ('Open Palm', 'Closed Fist', 'Camera View'),
+    )
+    frame = np.zeros(frame.shape)
+    y_diff = 25
+    y_top = 250
     for line in help_msg:
-        cv2.putText(frame, f"{line[0]} + {line[1]}: {line[2]}", (100, y_top), cv2.FONT_HERSHEY_DUPLEX, GESTURE_FONT_SIZE, GESTURE_TEXT_COLOR, GESTURE_FONT_THICKNESS, cv2.LINE_AA, False)
+        cv2.putText(frame, f"{line[0]} + {line[1]}: {line[2]}", (400, y_top), cv2.FONT_HERSHEY_DUPLEX, GESTURE_FONT_SIZE, GESTURE_TEXT_COLOR, GESTURE_FONT_THICKNESS, cv2.LINE_AA, False)
         y_top += y_diff
+    cv2.putText(frame, "Instructions", (485, 200), cv2.FONT_HERSHEY_DUPLEX, 0.75, GESTURE_TEXT_COLOR, 1, cv2.LINE_AA)
     return frame
 
 def draw_whiteboard(frame, points:list):
