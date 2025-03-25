@@ -1,7 +1,12 @@
 <h1>Overview</h1>
 This is a data visualization project I built in 24 hours for HackNYU.<br>
 It's written in Python using MediaPipe, OpenCV, Numpy, Pandas yFinance, and Fire.<br>
-Recently, I've been very fascinated with the idea of creating interfaces without keyboards. I've been seeing a lot of very cool projects with TouchDesigner ([1](https://www.instagram.com/p/DFQLkhTu5jP), [2](https://www.instagram.com/p/DFH2j5DROVK)), and it's been a big inspiration behind this project. <br>
+Recently, I've been very fascinated with the idea of creating interfaces without keyboards. I've been seeing a lot of very cool projects with TouchDesigner: 
+
+- [Inspo 1](https://www.instagram.com/p/DFQLkhTu5jP)
+- [Inspo 2](https://www.instagram.com/p/DFH2j5DROVK)
+
+and it's been a big inspiration behind this project. <br>
 I also wanted to learn more about machine learning and computer vision, and data visualization seemed like a very fun intersection of the two. <br>
 <br>
 
