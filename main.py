@@ -1,173 +1,121 @@
 import cv2
 import mediapipe as mp
 import numpy as np
-import pandas as pd
+import time
 
-import model
-import draw
+from classes import DATA, STATE
+from model import recognizer, RESULT
+from draw import cap, window_name, WIN_WIDTH, WIN_HEIGHT, CAP_WIDTH, CAP_HEIGHT, draw_gestures, draw_landmarks, draw_data, draw_wheel, draw_toggle
 
-SCREEN_WIDTH, SCREEN_HEIGHT = 2560, 1440
-cap = cv2.VideoCapture(0)
-cap.set(3, SCREEN_WIDTH)
-cap.set(4, SCREEN_HEIGHT)
-
-
-# data states
-timestamp = 0
-whiteboard = []
-class state:
-
-    def finger_distance(self):
-        return ((self.left_index[0] - self.right_index[0])**2 + (self.left_index[1] - self.right_index[1])**2) ** 0.5
-
-    def __init__(self):
-        self.datetimes = [0]
-        self.last_timestamp = 0
-        self.symbols = []
-        self.series = [True, True, True, True]
-        self.scale_mode = None
-        self.between = 0
-        self.scale = 1
-        self.len = 0
-        self.left = 0
-        self.left_index = (0, 0)
-        self.right_index = (0, 0)
-        self.capture_index = False # record position of index finger
-        self.whiteboard = 0
-        self.show_video = False
-        self.show_hands = True
-        self.show_help = False
-
-    def __str__(self):
-        return f"start: {self.datetimes[max(0, self.left)]}, end: {self.datetimes[min(self.len-1, self.left+int(1280/self.scale))]}"
-
-    def process_commands(self, GESTURES):
-        # LEFT: control panel
-        if GESTURES[1][0] == 'Closed_Fist': # toggle views (high, low, open, close)
-            if timestamp - self.last_timestamp > 36:
-                if GESTURES[0][0] == 'Pointing_Up': # close
-                    self.series[0] = not self.series[0]
-                    self.last_timestamp = timestamp
-                elif GESTURES[0][0] == 'Thumb_Up': # high
-                    self.series[1] = not self.series[1]
-                    self.last_timestamp = timestamp
-                elif GESTURES[0][0] == 'Thumb_Down': # low
-                    self.series[2] = not self.series[2]
-                    self.last_timestamp = timestamp
-                elif GESTURES[0][0] == 'Victory': # open
-                    self.series[3] = not self.series[3]
-                    self.last_timestamp = timestamp
-                elif GESTURES[0][0] == 'Open_Palm': # all
-                    self.series = [True, True, True, True]
-                    self.last_timestamp = timestamp
-            
-        elif GESTURES[1][0] == 'Pointing_Up': # data mode commands: zoom, shift
-            if GESTURES[0][0] == 'Pointing_Up': # pinch in/out
-                self.scale_mode = 'zoom'
-                if self.between == 0:
-                    self.between = self.finger_distance() / self.scale
-            elif GESTURES[0][0] == 'Thumb_Up': # swipe
-                #self.scale_mode = 'scroll'
-                pass
-            elif GESTURES[0][0] == 'Open_Palm': # reset
-                self.scale_mode = None
-                self.left = 0
-                self.scale = int(1280 / self.len)
-                
-        elif GESTURES[1][0] == 'Victory': # whiteboard
-            if GESTURES[0][0] == 'Pointing_Up':
-                self.capture_index = True
-            elif GESTURES[0][0] == 'Victory':
-                self.capture_index = False
-            elif GESTURES[0][0] == 'Open_Palm':
-                self.capture_index = False
-                global whiteboard
-                whiteboard.clear()
-                self.whiteboard = 0
-
-        elif GESTURES[1][0] == 'Open_Palm': # video mode
-            if GESTURES[0][0] == 'Closed_Fist':
-                self.show_video = False
-                self.show_hands = True
-            elif GESTURES[0][0] == 'Pointing_Up':
-                self.show_video = False
-                self.show_hands = False
-            elif GESTURES[0][0] == 'Victory':
-                self.show_video = True
-                self.show_hands = False
-
-STATE = state()
-print(STATE)
+'''
+altered data view:
+[ date_1:
+    [ close:  [ticker_1, ..., ticker_n],
+      high:   [ticker_1, ..., ticker_n],
+      low:    [ticker_1, ..., ticker_n],
+      open:   [ticker_1, ..., ticker_n],
+      volume: [ticker_1, ..., ticker_n] ],
+  date_2:
+    [ close: ..., high: ..., low: ..., open: ..., volume: ...],
+  ...
+  date_n: ...
+]
+'''
 
 
-def set_index(result): # set state of index fingers
-    for i in range(len(result.handedness)):
-        if result.handedness[i][0].category_name == 'Left': # Left=right, Right=left
-            STATE.right_index = (int(result.hand_landmarks[i][8].x*1280), int(result.hand_landmarks[i][8].y*720))
-        else:
-            STATE.left_index = (int(result.hand_landmarks[i][8].x*1280), int(result.hand_landmarks[i][8].y*720))
-    return None
+def process_touch():
+    if STATE.hand_mode != 4: # toggle on
+        STATE.hand_mode = 4
+    else: # toggle off: get index distance
+        # not fixed scaling (is this bad)
+        distance = int(6 * ((RESULT.landmarks[0][8].x - RESULT.landmarks[1][8].x)**2 + (RESULT.landmarks[0][8].y - RESULT.landmarks[1][8].y)**2 )**0.5)
+        STATE.hand_mode = min(3, max(0, distance))
+
+
+def process_toggle():
+    if RESULT.distances[0][0]: # prev
+        STATE.toggle_index = (STATE.toggle_index - 1) % DATA.shape[2]
+    
+    elif RESULT.distances[0][1]: # next
+        STATE.toggle_index = (STATE.toggle_index + 1) % DATA.shape[2]
+    
+    elif RESULT.distances[1][0]: # toggle cur
+        STATE.display_symbols[STATE.toggle_index] = not STATE.display_symbols[STATE.toggle_index]
+        STATE.display_names = [DATA.series_names[1][i] for i in range(len(DATA.series_names[1])) if STATE.display_symbols[i]]
+
+    elif RESULT.distances[1][1]: # toggle arima for cur
+        print('show arima')
+
+    elif RESULT.distances[1][2]: # toggle all
+        val = not STATE.display_symbols[STATE.toggle_index]
+        STATE.display_symbols = [val for _ in STATE.display_symbols]
+        STATE.display_names = [DATA.series_names[1][i] for i in range(len(DATA.series_names[1])) if STATE.display_symbols[i]]
+    
+    else:
+        return
+    
+    STATE.cooldown = 24
 
 
 # Display block
-def event_loop(data, symbols, datetimes):
-    # new data view: (GOOG Close, META Close, GOOG High, META High, GOOG Low, META Low, GOOG Open, META Open)
-
-    global STATE, whiteboard, timestamp
-    STATE.symbols = symbols
-    STATE.len = data.shape[0]
-    STATE.scale = 1280 / data.shape[0]
-    STATE.datetimes = datetimes
-
+def event_loop():
+    start = int(time.time()*1000)
     while cap.isOpened():
+        timestamp = int(time.time()*1000)
         ret, frame = cap.read()
         if not ret:
             print("Can't receive frame (stream end?). Exiting ...")
             break
         frame = cv2.flip(frame, 1)
+        frame = cv2.resize(frame, (WIN_WIDTH, WIN_HEIGHT))
 
         mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)) # better for gesture recog
-        model.recognizer.recognize_async(mp_image, timestamp)
+        recognizer.recognize_async(mp_image, timestamp)
 
-        STATE.process_commands(model.GESTURES)
+        if STATE.cooldown == 0:
+            # thumb-pinky
+            if RESULT.distances[1][3] and (len(RESULT.landmarks[1]) == len(RESULT.landmarks[1]) > 0): # toggle
+                process_touch()
+                STATE.cooldown = 24
+            elif STATE.hand_mode == 3: # toggling series
+                process_toggle()
 
+        display = np.zeros(frame.shape)
+        #always rendered
+        draw_gestures(display)
+        draw_landmarks(display)
 
-        # state subscribers
-        if STATE.show_video:
-            display = frame
-        else:
-            display = np.zeros(frame.shape)
-        if model.RESULT != None:
-            set_index(model.RESULT)
-            if STATE.capture_index:
-                whiteboard.append(STATE.right_index)
-                #STATE.whiteboard += 1
-            if STATE.show_hands:
-                display = draw.draw_result(display, model.RESULT)
-            if STATE.scale_mode == 'zoom':
-                STATE.scale = STATE.finger_distance() / STATE.between
-            elif STATE.scale_mode == 'scroll':
-                STATE.left = int(STATE.right_index[0]/1280*STATE.len)
+        # not menu select
+        if STATE.hand_mode != 4:
+            draw_data(display)
+            # toggle
+            if STATE.hand_mode == 3:
+                draw_toggle(display)
+        # both hands present
+        elif len(RESULT.landmarks[0]) == len(RESULT.landmarks[1]) > 0: # selecting: requires both hands in frame
+            draw_wheel(display)
+        
 
-        # stuff that always draws
-        display = draw.draw_state(display, STATE)
-        display = draw.draw_gesture(display, model.GESTURES)
-        display = draw.draw_data(display, data[STATE.left:STATE.left+int(1280/STATE.scale)], STATE.scale, STATE.series, STATE.symbols)
-        display = draw.draw_whiteboard(display, whiteboard) # buggy but basically works
-        if STATE.show_help:
-            display = draw.draw_help(display)
+        # if VIDEO_MODE == 1: # only hands
+        #     display = draw.draw_result(display)
+        # elif VIDEO_MODE == 2: # only video
+        #     display = frame
+        # else: # all
+        #     display = frame
+        #     display = draw.draw_result(display)
+        
+        # cleanup
+        if STATE.cooldown > 0:
+            STATE.cooldown -= 1
 
 
         key = cv2.waitKey(1)
         if key == ord('q'):
             break
-        elif key == ord('h'):
-            STATE.show_help = not STATE.show_help
+        
+        cv2.imshow(window_name, display)
 
-        cv2.imshow('app name', display) # change this
-        timestamp += 1
-
-    print('active frames:', timestamp)
+    print(f'program duration: {timestamp - start} ms')
     cap.release()
     cv2.destroyAllWindows()
 

@@ -1,7 +1,13 @@
 # import stuff from loader
 import fire
 import yfinance as yf
-import main
+import numpy as np
+import pandas as pd
+from typing import List, Tuple
+
+from classes import data, state
+from main import event_loop
+from classes import DATA, STATE
 
 VALID_TICKERS = {
     'META',
@@ -10,22 +16,29 @@ VALID_TICKERS = {
     'GOOG',
     'AAPL',
     'PLTR',
-    'ORCL', # OpenAI
+    'ORCL',
     'RBLX',
     'NVDA'
 }
 
 def load(period='1y', interval='1d', *symbols:list[str]): # translate to yfinance api
+    global DATA, STATE
     symbols = [s.upper() for s in symbols]
     for s in symbols: # simple validation
         if s not in VALID_TICKERS:
             return f'Invalid ticker: "{s}"'
 
-    data = yf.download(' '.join(symbols), period=period, interval=interval).drop(columns=[('Volume', s) for s in symbols]) # returns pd.DataFrame
-        # (GOOG Close, META Close, GOOG High, META High, GOOG Low, META Low, GOOG Open, META Open)
-    datetimes = data.index
-    #print(datetimes)
-    main.event_loop(data.to_numpy(), symbols, datetimes)
+    # dropping Volume for now
+    raw = yf.download(' '.join(symbols), period=period, interval=interval).drop('Volume', axis=1, level=0).fillna(0)
+    # print(raw.shape)
+
+    DATA.set_data(raw)
+    STATE.set_state(DATA)
+    
+    # print(DATA)
+    # print(STATE)
+
+    event_loop()
 
 
 if __name__ == '__main__':

@@ -1,21 +1,17 @@
 <h1>Overview</h1>
 This is a data visualization project I built in 24 hours for HackNYU.<br>
 It's written in Python using MediaPipe, OpenCV, Numpy, Pandas yFinance, and Fire.<br>
-Recently, I've been very fascinated with the idea of creating interfaces without keyboards. I've been seeing a lot of very cool projects with TouchDesigner: 
-
-- [Inspo 1](https://www.instagram.com/p/DFQLkhTu5jP)
-- [Inspo 2](https://www.instagram.com/p/DFH2j5DROVK)
-
-and it's been a big inspiration behind this project. <br>
+Recently, I've been very fascinated with the idea of creating interfaces without keyboards. I've been seeing a lot of very cool projects with TouchDesigner ([1](https://www.instagram.com/p/DFQLkhTu5jP), [2](https://www.instagram.com/p/DFH2j5DROVK)), and it's been a big inspiration behind this project. <br>
 I also wanted to learn more about machine learning and computer vision, and data visualization seemed like a very fun intersection of the two. <br>
 <br>
 
 
 <h1>Usage</h1>
-1. Pull the repo from Github `git clone ...` <br>
-2. Activate the virtual environment: `python venv ...`, `venv/bin/activate` <br>
-3. Install requirements: `pip install -r requirements.txt` <br>
-4. Run `python cli.py --period --interval --symbols` (arguments passed on to yfinance) <br>
+
+1. Pull the repo from Github `git clone ...`
+2. Activate the virtual environment: `python venv ...`, `venv/bin/activate`
+3. Install requirements: `pip install -r requirements.txt`
+4. Run `python cli.py --period --interval --symbols` (e.g. `python cli.py 2y 1d NVDA AMZN GOOG`)
 5. Have fun!
 <br><br>
 
