@@ -3,9 +3,7 @@ import fire
 import yfinance as yf
 import numpy as np
 import pandas as pd
-from typing import List, Tuple
 
-from classes import data, state
 from main import event_loop
 from classes import DATA, STATE
 
@@ -21,9 +19,13 @@ VALID_TICKERS = {
     'NVDA'
 }
 
-def load(period='1y', interval='1d', *symbols:list[str]): # translate to yfinance api
+def download(period='1y', interval='1d', *symbols:list[str]): # translate to yfinance api
     global DATA, STATE
+
     symbols = [s.upper() for s in symbols]
+    if len(symbols) == 0:
+        symbols =['AMZN', 'GOOG', 'NVDA', 'META']
+
     for s in symbols: # simple validation
         if s not in VALID_TICKERS:
             return f'Invalid ticker: "{s}"'
@@ -38,7 +40,21 @@ def load(period='1y', interval='1d', *symbols:list[str]): # translate to yfinanc
     # print(DATA)
     # print(STATE)
 
+    # event_loop()
+
+
+def read(path: str):
+    '''
+    read csv file as DataFrame
+    '''
+    global DATA, STATE
+    raw = pd.read_csv(path, header=[0, 1], index_col=[0])
+
+    DATA.set_data(raw)
+    STATE.set_state(DATA)
+
     event_loop()
+    
 
 
 if __name__ == '__main__':
@@ -47,4 +63,4 @@ if __name__ == '__main__':
     example 1: `python cli.py 5d 15m meta`
     example 2: `python cli.py --period=1mo --interval=1d meta goog`
     '''
-    fire.Fire(load)
+    fire.Fire()

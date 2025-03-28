@@ -5,10 +5,10 @@ import time
 
 from classes import DATA, STATE
 from model import recognizer, RESULT
-from draw import cap, window_name, WIN_WIDTH, WIN_HEIGHT, CAP_WIDTH, CAP_HEIGHT, draw_gestures, draw_landmarks, draw_data, draw_wheel, draw_toggle
+from draw import cap, window_name, window_w, window_h, draw_const, draw_data, draw_wheel, draw_whiteboard
 
 '''
-altered data view:
+DATA.values:
 [ date_1:
     [ close:  [ticker_1, ..., ticker_n],
       high:   [ticker_1, ..., ticker_n],
@@ -24,30 +24,51 @@ altered data view:
 
 
 def process_touch():
-    if STATE.hand_mode != 4: # toggle on
-        STATE.hand_mode = 4
+    if STATE.index != 4: # toggle on
+        STATE.index = 4
     else: # toggle off: get index distance
-        # not fixed scaling (is this bad)
-        distance = int(6 * ((RESULT.landmarks[0][8].x - RESULT.landmarks[1][8].x)**2 + (RESULT.landmarks[0][8].y - RESULT.landmarks[1][8].y)**2 )**0.5)
-        STATE.hand_mode = min(3, max(0, distance))
+        if len(RESULT.landmarks[0]) == len(RESULT.landmarks[1]) > 0:
+            STATE.index = min(3, max(0, STATE.subindex))
+            STATE.subindex = 0
+    STATE.cooldown = 24
+
+
+def process_scroll(): # [none, resize, scroll]
+    # next
+    if RESULT.distances[0][0]: # left thumb-index
+        STATE.subindex = (STATE.subindex + 1) % 3
+        STATE.cooldown = 24
+    # prev
+    elif RESULT.distances[0][3]: # left thumb-pinky
+        STATE.subindex = (STATE.subindex - 1) % 3
+        STATE.cooldown = 24
+
+
+def process_whiteboard(): # add index finger to whiteboard
+    # toggle
+    if RESULT.distances[0][0]: # left thumb-index
+        STATE.subindex = (STATE.subindex + 1) % 2
+        STATE.cooldown = 24
+    # cls
+    elif RESULT.distances[0][3]: # left thumb-pinky
+        STATE.subindex = 0
+        STATE.whiteboard.clear()
+        STATE.cooldown = 24
 
 
 def process_toggle():
-    if RESULT.distances[0][0]: # prev
-        STATE.toggle_index = (STATE.toggle_index - 1) % DATA.shape[2]
+    if RESULT.distances[0][0]: # prev (left index)
+        STATE.subindex = (STATE.subindex - 1) % DATA.shape[2]
     
-    elif RESULT.distances[0][1]: # next
-        STATE.toggle_index = (STATE.toggle_index + 1) % DATA.shape[2]
+    elif RESULT.distances[0][3]: # next (left pinky)
+        STATE.subindex = (STATE.subindex + 1) % DATA.shape[2]
     
-    elif RESULT.distances[1][0]: # toggle cur
-        STATE.display_symbols[STATE.toggle_index] = not STATE.display_symbols[STATE.toggle_index]
+    elif RESULT.distances[1][0]: # toggle cur (right index)
+        STATE.display_symbols[STATE.subindex] = not STATE.display_symbols[STATE.subindex]
         STATE.display_names = [DATA.series_names[1][i] for i in range(len(DATA.series_names[1])) if STATE.display_symbols[i]]
 
-    elif RESULT.distances[1][1]: # toggle arima for cur
-        print('show arima')
-
-    elif RESULT.distances[1][2]: # toggle all
-        val = not STATE.display_symbols[STATE.toggle_index]
+    elif RESULT.distances[1][1]: # toggle all (right middle)
+        val = not STATE.display_symbols[STATE.subindex]
         STATE.display_symbols = [val for _ in STATE.display_symbols]
         STATE.display_names = [DATA.series_names[1][i] for i in range(len(DATA.series_names[1])) if STATE.display_symbols[i]]
     
@@ -57,70 +78,73 @@ def process_toggle():
     STATE.cooldown = 24
 
 
-# Display block
 def event_loop():
     start = int(time.time()*1000)
-    while cap.isOpened():
-        timestamp = int(time.time()*1000)
+    timestamp = int(time.time()*1000)
+    while True:
+        # 0. capture video
         ret, frame = cap.read()
         if not ret:
             print("Can't receive frame (stream end?). Exiting ...")
             break
         frame = cv2.flip(frame, 1)
-        frame = cv2.resize(frame, (WIN_WIDTH, WIN_HEIGHT))
+        frame = cv2.resize(frame, (window_w, window_h))
 
+        # 1. mediapipe
         mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)) # better for gesture recog
+        timestamp = int(time.time()*1000)
         recognizer.recognize_async(mp_image, timestamp)
 
+        # 1. logic
         if STATE.cooldown == 0:
-            # thumb-pinky
             if RESULT.distances[1][3] and (len(RESULT.landmarks[1]) == len(RESULT.landmarks[1]) > 0): # toggle
                 process_touch()
-                STATE.cooldown = 24
-            elif STATE.hand_mode == 3: # toggling series
+            elif STATE.index == 0: # scroll
+                process_scroll()
+            elif STATE.index == 1: # whiteboard
+                process_whiteboard()
+            elif STATE.index == 2: # toggle series
                 process_toggle()
 
+        # whiteboard
+        if  STATE.index == 1 and STATE.subindex == 1 and len(RESULT.landmarks[1]) > 0:
+            STATE.whiteboard.append((window_w * RESULT.landmarks[1][8].x, window_h * RESULT.landmarks[1][8].y))
+
+        # 2. render
         display = np.zeros(frame.shape)
+
         #always rendered
-        draw_gestures(display)
-        draw_landmarks(display)
-
-        # not menu select
-        if STATE.hand_mode != 4:
+        draw_const(display)
+        draw_whiteboard(display) # whiteboard
+        
+        if STATE.index == 4:
+            if len(RESULT.landmarks[0]) == len(RESULT.landmarks[1]) > 0:
+                distance = int((12 * (RESULT.landmarks[0][8].x - RESULT.landmarks[1][8].x)**2 + (RESULT.landmarks[0][8].y - RESULT.landmarks[1][8].y)**2 )**0.5)
+                STATE.subindex = min(4, max(0, distance))
+                draw_wheel(display)
+        else:
             draw_data(display)
-            # toggle
-            if STATE.hand_mode == 3:
-                draw_toggle(display)
-        # both hands present
-        elif len(RESULT.landmarks[0]) == len(RESULT.landmarks[1]) > 0: # selecting: requires both hands in frame
-            draw_wheel(display)
-        
-
-        # if VIDEO_MODE == 1: # only hands
-        #     display = draw.draw_result(display)
-        # elif VIDEO_MODE == 2: # only video
-        #     display = frame
-        # else: # all
-        #     display = frame
-        #     display = draw.draw_result(display)
-        
-        # cleanup
-        if STATE.cooldown > 0:
-            STATE.cooldown -= 1
-
+            if STATE.index == 0 and len(RESULT.landmarks[1]) > 0:
+                if STATE.subindex == 1: # resize
+                    idx = (min(0.75, max(0.25, RESULT.landmarks[1][8].x)) - 0.25) * 2 # right index finger: [0.25, 0.75] -> [0, len(series)]
+                    idx = min(DATA.shape[0] - STATE.left_index, max(STATE.left_index, int(idx * DATA.shape[0])))
+                    STATE.display_length = idx
+                elif STATE.subindex == 2: # scroll
+                    idx = (min(0.75, max(0.25, RESULT.landmarks[1][8].x)) - 0.25) * 2 # right index finger: [0.25, 0.75] -> [0, len(series)]
+                    idx = min(DATA.shape[0] - STATE.display_length, max(0, int(idx * DATA.shape[0])))
+                    STATE.left_index = idx
 
         key = cv2.waitKey(1)
         if key == ord('q'):
             break
-        
+
         cv2.imshow(window_name, display)
+
+        # 3. cleanup
+        if STATE.cooldown > 0:
+            STATE.cooldown -= 1
+
 
     print(f'program duration: {timestamp - start} ms')
     cap.release()
     cv2.destroyAllWindows()
-
-
-if __name__ == '__main__':
-    a1 = np.random.rand(500, 4).round(3) * 710
-    print(a1.shape)
-    event_loop(a1)
