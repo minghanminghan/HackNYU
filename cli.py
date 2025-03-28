@@ -7,21 +7,6 @@ import pandas as pd
 from main import event_loop
 from classes import DATA, STATE
 
-
-def download(period='1y', interval='1d', *symbols:list[str]): # translate to yfinance api
-    global DATA, STATE
-
-    symbols = [s.upper() for s in symbols]
-    if len(symbols) == 0:
-        symbols =['AMZN', 'GOOG', 'NVDA', 'META'] # default
-        
-    # dropping Volume for now
-    raw = yf.download(' '.join(symbols), period=period, interval=interval).drop('Volume', axis=1, level=0).fillna(0)
-
-    DATA.set_data(raw)
-    STATE.set_state(DATA)
-
-
 def read(path: str):
     '''
     read csv file as DataFrame

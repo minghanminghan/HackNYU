@@ -24,13 +24,7 @@ INSTRUCTIONS = (
     ('Right Thumb + Right Pinky = Select Option', '')
 )
 states = ('Adjust Period', 'Whiteboard', 'Toggle Series', 'None', 'Menu')
-substates = (
-    ('None', 'Resize', 'Scroll', ''),
-    ('Pen Off', 'Pen On'),
-    tuple(DATA.series_names[1]), # loads?
-    ('None', ''),
-    ('Adjust Period', 'Whiteboard', 'Toggle Series', 'None')
-)
+
 # SCROLL_MODE = ('None', 'Resize', 'Scroll')
 
 font_size = 0.5
@@ -124,11 +118,11 @@ def draw_const(frame):
         offset_w = cv2.getTextSize(instructions[i], cv2.FONT_HERSHEY_DUPLEX, font_size, 1)[0][0]
         cv2.putText(frame, instructions[i], (window_w-margin_w-offset_w, box_bottom+i*text_offset_h), cv2.FONT_HERSHEY_DUPLEX, font_size, text_color, font_thickness)
 
-    text = f'{substates[STATE.index][STATE.subindex]}'
+    text = f'{STATE.substates[STATE.index][STATE.subindex]}'
     offset_w = cv2.getTextSize(text, cv2.FONT_HERSHEY_DUPLEX, font_size, 1)[0][0]
     cv2.rectangle(frame, (3*margin_w-5, box_bottom+STATE.subindex*(text_offset_h+5)-15), (3*margin_w+offset_w+5, box_bottom+STATE.subindex*(text_offset_h+5)+5), (255, 255, 255), 1) # highlight active
-    for i in range(len(substates[STATE.index])):
-        cv2.putText(frame, substates[STATE.index][i], (3*margin_w, box_bottom+i*(text_offset_h+5)), cv2.FONT_HERSHEY_DUPLEX, font_size, text_color, font_thickness)
+    for i in range(len(STATE.substates[STATE.index])):
+        cv2.putText(frame, STATE.substates[STATE.index][i], (3*margin_w, box_bottom+i*(text_offset_h+5)), cv2.FONT_HERSHEY_DUPLEX, font_size, text_color, font_thickness)
 
     # landmarks
     for i in range(len(RESULT.landmarks)):

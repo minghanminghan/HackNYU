@@ -18,18 +18,14 @@ class data:
         self.shape = (len(self.datetimes), len(self.series_names[0]), len(self.series_names[1]))
         self.values = values.values.reshape(self.shape)
 
-        # print(self.shape)
 
 
 class state:
     def __init__(self, *args):
         self.index = 3 # 0: scrolling, 1: whiteboard, 2: toggling series, 3: none, 4: select
         self.subindex = 0
+        self.substates = ((), (), (), (), ())
 
-        # self.scroll_mode = 0 # 0: none, 1: resize, 2: scroll
-        # self.can_draw = False
-        # self.toggle_index = 0
-        
         self.left_index = 0
         self.display_length = 0
 
@@ -43,6 +39,13 @@ class state:
         self.display_length: int = data.values.shape[0]                    # [1, SHAPE[0]]
         self.display_symbols: List[bool] = [True] * data.values.shape[2]   # [True, ..., True]
         self.display_names = data.series_names[1]
+        self.substates = (
+            ('None', 'Resize', 'Scroll', ''),
+            ('Pen Off', 'Pen On'),
+            tuple(data.series_names[1]), # loads?
+            ('None', ''),
+            ('Adjust Period', 'Whiteboard', 'Toggle Series', 'None')
+        )
 
 class result:
     def __init__(self):

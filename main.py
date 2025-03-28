@@ -26,6 +26,7 @@ DATA.values:
 def process_touch():
     if STATE.index != 4: # toggle on
         STATE.index = 4
+        STATE.subindex = 0
     else: # toggle off: get index distance
         if RESULT.fresh[0] < 6 and RESULT.fresh[1] < 6: # left = 0
             STATE.index = min(3, max(0, STATE.subindex))
