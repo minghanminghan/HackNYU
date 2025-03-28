@@ -23,13 +23,13 @@ INSTRUCTIONS = (
     # 4: select
     ('Right Thumb + Right Pinky = Select Option', '')
 )
-states = ('Adjust Time Series', 'Whiteboard', 'Toggle Series', 'None', 'Menu')
+states = ('Adjust Period', 'Whiteboard', 'Toggle Series', 'None', 'Menu')
 substates = (
     ('None', 'Resize', 'Scroll', ''),
     ('Pen Off', 'Pen On'),
     tuple(DATA.series_names[1]), # loads?
     ('None', ''),
-    ('Adjust Time Series', 'Whiteboard', 'Toggle Series', 'None')
+    ('Adjust Period', 'Whiteboard', 'Toggle Series', 'None')
 )
 # SCROLL_MODE = ('None', 'Resize', 'Scroll')
 
@@ -56,10 +56,10 @@ def draw_whiteboard(frame):
 # 4. select
 def draw_wheel(frame):
     cv2.line(frame, 
-        (int(window_w * RESULT.landmarks[0][8].x), int(window_h * RESULT.landmarks[0][8].y)),
-        (int(window_w * RESULT.landmarks[1][8].x), int(window_h * RESULT.landmarks[1][8].y)),
+        (int(window_w * RESULT.landmarks[0][1][0]), int(window_h * RESULT.landmarks[0][1][1])),
+        (int(window_w * RESULT.landmarks[1][1][0]), int(window_h * RESULT.landmarks[1][1][1])),
         (255, 255, 255), 1)
-    midpoint = (int(window_w * (RESULT.landmarks[0][8].x + RESULT.landmarks[1][8].x) / 2), int(window_h * (RESULT.landmarks[0][8].y + RESULT.landmarks[1][8].y) / 2))
+    midpoint = (int(window_w * (RESULT.landmarks[0][1][0] + RESULT.landmarks[1][1][0]) / 2), int(window_h * (RESULT.landmarks[0][1][1] + RESULT.landmarks[1][1][1]) / 2))
     
     # distance & min/max logic is being reused here
     text_offset = cv2.getTextSize(states[STATE.subindex], cv2.FONT_HERSHEY_DUPLEX, font_size, 1)[0] # → retval: (x, y), baseLine
@@ -112,11 +112,11 @@ def draw_const(frame):
     right = margin_w + int((STATE.left_index + STATE.display_length) / DATA.shape[0] * frame_w)
 
     cv2.line(frame, (margin_w, margin_h-30), (window_w-margin_w, margin_h-30), (255, 255, 255), 1)
-    cv2.rectangle(frame, (left, margin_h-21), (right, margin_h-19), (255, 255, 255), -1)
-    cv2.putText(frame, f'start: {DATA.datetimes[STATE.left_index]}', (margin_w, margin_h-2*text_offset_h), cv2.FONT_HERSHEY_DUPLEX, font_size, text_color, font_thickness)
+    cv2.rectangle(frame, (left, margin_h-31), (right, margin_h-29), (255, 255, 255), -1)
+    cv2.putText(frame, f'start: {DATA.datetimes[STATE.left_index]}', (margin_w, margin_h-2*text_offset_h-10), cv2.FONT_HERSHEY_DUPLEX, font_size, text_color, font_thickness)
     text = f'end: {DATA.datetimes[min(STATE.left_index + STATE.display_length, DATA.shape[0]-1)]}'
     offset_w = cv2.getTextSize(text, cv2.FONT_HERSHEY_DUPLEX, font_size, 1)[0][0]
-    cv2.putText(frame, text, (window_w-margin_w-offset_w, margin_h-2*text_offset_h), cv2.FONT_HERSHEY_DUPLEX, font_size, text_color, font_thickness)
+    cv2.putText(frame, text, (window_w-margin_w-offset_w, margin_h-2*text_offset_h-10), cv2.FONT_HERSHEY_DUPLEX, font_size, text_color, font_thickness)
 
     cv2.putText(frame, f'Mode: {states[STATE.index]}', (margin_w, box_bottom), cv2.FONT_HERSHEY_DUPLEX, font_size, text_color, font_thickness)
     instructions = INSTRUCTIONS[STATE.index]
@@ -130,22 +130,9 @@ def draw_const(frame):
     for i in range(len(substates[STATE.index])):
         cv2.putText(frame, substates[STATE.index][i], (3*margin_w, box_bottom+i*(text_offset_h+5)), cv2.FONT_HERSHEY_DUPLEX, font_size, text_color, font_thickness)
 
-    # state-related context: GET RID OF CONDITIONALS
-    # if STATE.index == 0: # scrolling
-    #     cv2.putText(frame, f'Scroll Mode: {SCROLL_MODE[STATE.scroll_mode]}', (margin_w, box_bottom+text_offset_h), cv2.FONT_HERSHEY_DUPLEX, font_size, text_color, font_thickness)
-    # elif STATE.index == 1: # whiteboard
-    #     cv2.putText(frame, f'Drawing: {STATE.can_draw}', (margin_w, box_bottom+text_offset_h), cv2.FONT_HERSHEY_DUPLEX, font_size, text_color, font_thickness)
-    #     cv2.putText(frame, f'Whiteboard size: {len(STATE.whiteboard)}', (margin_w, box_bottom+2*text_offset_h), cv2.FONT_HERSHEY_DUPLEX, font_size, text_color, font_thickness)
-    # elif STATE.index == 2: # toggle series
-    #     cv2.putText(frame, f'Current Series: {DATA.series_names[1][STATE.subindex]}', (margin_w, box_bottom+text_offset_h), cv2.FONT_HERSHEY_DUPLEX, font_size, text_color, font_thickness)
-    #     cv2.putText(frame, f'All Series: {DATA.series_names[1]}', (margin_w, box_bottom+2*text_offset_h), cv2.FONT_HERSHEY_DUPLEX, font_size, text_color, font_thickness)
-    #     cv2.putText(frame, f'Displaying: {STATE.display_symbols}', (margin_w, box_bottom+3*text_offset_h), cv2.FONT_HERSHEY_DUPLEX, font_size, text_color, font_thickness)
-
-
     # landmarks
     for i in range(len(RESULT.landmarks)):
-        if not RESULT.stale[i]: # stale threshold: 6 frames
-            continue
-        hand = RESULT.landmarks[i]
-        for landmark in hand[4::4]: # fingertips
-            cv2.circle(frame, (int(window_w*landmark.x), int(window_h*landmark.y)), 2, (230, 230, 230), -1)
+        if RESULT.fresh[i] < 3:
+            hand = RESULT.landmarks[i]
+            for landmark in hand:
+                cv2.circle(frame, (int(window_w*landmark[0]), int(window_h*landmark[1])), 2, (230, 230, 230), -1)

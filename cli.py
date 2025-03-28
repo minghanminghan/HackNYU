@@ -7,40 +7,19 @@ import pandas as pd
 from main import event_loop
 from classes import DATA, STATE
 
-VALID_TICKERS = {
-    'META',
-    'AMZN',
-    'NFLX',
-    'GOOG',
-    'AAPL',
-    'PLTR',
-    'ORCL',
-    'RBLX',
-    'NVDA'
-}
 
 def download(period='1y', interval='1d', *symbols:list[str]): # translate to yfinance api
     global DATA, STATE
 
     symbols = [s.upper() for s in symbols]
     if len(symbols) == 0:
-        symbols =['AMZN', 'GOOG', 'NVDA', 'META']
-
-    for s in symbols: # simple validation
-        if s not in VALID_TICKERS:
-            return f'Invalid ticker: "{s}"'
-
+        symbols =['AMZN', 'GOOG', 'NVDA', 'META'] # default
+        
     # dropping Volume for now
     raw = yf.download(' '.join(symbols), period=period, interval=interval).drop('Volume', axis=1, level=0).fillna(0)
-    # print(raw.shape)
 
     DATA.set_data(raw)
     STATE.set_state(DATA)
-    
-    # print(DATA)
-    # print(STATE)
-
-    # event_loop()
 
 
 def read(path: str):

@@ -5,36 +5,25 @@ import numpy as np
 RESULT = result()
 
 def update_result(result, *args):
-    global RESULT
-    RESULT.landmarks[0].clear() # deprecating 
-    RESULT.landmarks[1].clear()
-    
-    # print(len(result.handedness))
-    # print(result.hand_landmarks)
-    # print(result)
 
     for i in range(len(result.handedness)):
-        idx = result.handedness[i][0].category_name == 'Left' # 0 == 'Right' but frame is flipped so actually it's left
-        
-        if len(RESULT.landmarks[idx]) == 0: # edge case
-            RESULT.stale[idx] += 1
+        idx = int(result.handedness[i][0].category_name == 'Left') # 0 == 'Right' but frame is flipped so actually it's left
+
+        if len(result.hand_landmarks[i]) == 0: # edge case
+            RESULT.fresh[idx] += 1
             continue
 
-        RESULT.landmarks[idx] = result.hand_landmarks[i] # change this
+        RESULT.fresh[idx] = 0
 
-        # print(idx)
-        thumb = RESULT.landmarks[idx][4]
-        for i in range(2, 6): # [2, ..., 5]
-            p = RESULT.landmarks[idx][i*4]
-            RESULT.distances[idx][i-2] = ((thumb.x - p.x)**2 + (thumb.y - p.y)**2)**0.5 < 0.05 # distance threshold = 0.05
-        RESULT.stale[idx] = 0
+        for j in range(5):
+            RESULT.landmarks[idx][j] = (result.hand_landmarks[i][4*j+4].x, result.hand_landmarks[i][4*j+4].y) # [[x, y], ...]
 
-
-    # print(RESULT.landmarks)
-
+        thumb = RESULT.landmarks[idx][0]
+        tips = RESULT.landmarks[idx][1:]
+        RESULT.distances[idx] = ((tips - thumb)**2).sum(axis=1) < 0.003
 
 options = tasks.vision.GestureRecognizerOptions(
-    base_options=tasks.BaseOptions(model_asset_path='gesture_recognizer.task'),
+    base_options=tasks.BaseOptions(model_asset_path='gesture_recognizer.task'), # switch out for hand_landmarker
     running_mode=tasks.vision.RunningMode.LIVE_STREAM,
     num_hands=2,
     result_callback=update_result,

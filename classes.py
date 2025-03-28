@@ -46,11 +46,10 @@ class state:
 
 class result:
     def __init__(self):
-        self.gestures = ['None', 'None'] # [left, right]
         self.angles = [0, 0]
         self.distances = [[False for i in range(4)] for j in range(2)] # [thumb-index, thumb-middle, thumb-ring, thumb-pinky]
-        self.landmarks = [[], []]
-        self.stale = [False, False]
+        self.landmarks = [np.zeros((5, 2), dtype=np.float64), np.zeros((5, 2), dtype=np.float64)]
+        self.fresh = [0, 0] # tolerate 5 stale frames
 
 DATA = data()
 STATE = state()
